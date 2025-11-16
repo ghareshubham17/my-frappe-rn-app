@@ -13,10 +13,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native'; // Add this import
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useFrappeService } from '../services/frappeService';
-import AttendanceCalendar from '../components/AttendanceCalendar'; // Import the calendar component
+import AttendanceCalendar from '../components/AttendanceCalendar';
 
 const { width } = Dimensions.get('window');
 

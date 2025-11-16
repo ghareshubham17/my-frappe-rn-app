@@ -1,10 +1,11 @@
-// export default AppNavigator;
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "../contexts/AuthContext";
+import { View, ActivityIndicator } from "react-native";
 
 // Import screens
+import SiteSetupScreen from "../screens/SiteSetupScreen";
 import LoginScreen from "../screens/LoginScreen";
 import HomeScreen from "../screens/HomeScreen";
 import LeaveApplication from "../screens/LeaveApplication";
@@ -15,17 +16,23 @@ import MonthlyAttendanceSheet from "../reports/MonthlyAttendanceSheet";
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, isFirstLaunch, siteUrl } = useAuth();
 
   if (loading) {
-    // You can add a loading screen here if needed
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+        <ActivityIndicator size="large" color="#667eea" />
+      </View>
+    );
   }
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
+        {!siteUrl || isFirstLaunch ? (
+          // Need site setup
+          <Stack.Screen name="SiteSetup" component={SiteSetupScreen} />
+        ) : isAuthenticated ? (
           // Authenticated stack
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
@@ -57,7 +64,7 @@ const AppNavigator = () => {
             />
           </>
         ) : (
-          // Authentication stack
+          // Login screen
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
       </Stack.Navigator>

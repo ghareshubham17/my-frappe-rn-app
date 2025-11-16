@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   StyleSheet,
   View,
@@ -6,34 +6,36 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Dimensions
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../contexts/AuthContext';
-import { BASE_URI } from '../data/constants';
+  Dimensions,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../contexts/AuthContext";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 const ProfileTabScreen = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, siteUrl } = useAuth();
+
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', onPress: logout, style: 'destructive' },
-      ]
-    );
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", onPress: logout, style: "destructive" },
+    ]);
   };
 
   const handleSettingPress = (setting) => {
-    Alert.alert('Settings', `${setting} feature coming soon`);
+    Alert.alert("Settings", `${setting} feature coming soon`);
   };
 
-  const ProfileItem = ({ icon, title, subtitle, onPress, showArrow = true }) => (
+  const ProfileItem = ({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    showArrow = true,
+  }) => (
     <TouchableOpacity
       style={styles.profileItem}
       onPress={onPress}
@@ -56,7 +58,7 @@ const ProfileTabScreen = () => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={["#667eea", "#764ba2"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.profileHeader}
@@ -67,14 +69,14 @@ const ProfileTabScreen = () => {
               <Ionicons name="person" size={48} color="#FFFFFF" />
             </View>
           </View>
-          
+
           <Text style={styles.userName}>
-            {user?.full_name || user?.name || 'User'}
+            {user?.full_name || user?.name || "User"}
           </Text>
           <Text style={styles.userEmail}>
-            {user?.email || 'No email available'}
+            {user?.email || "No email available"}
           </Text>
-          
+
           <View style={styles.connectionStatus}>
             <Ionicons name="checkmark-circle" size={16} color="#00D68F" />
             <Text style={styles.connectionText}>Connected</Text>
@@ -85,72 +87,88 @@ const ProfileTabScreen = () => {
       {/* Account Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
-        
+
         <ProfileItem
           icon="person-outline"
           title="Edit Profile"
           subtitle="Update your personal information"
-          onPress={() => handleSettingPress('Edit Profile')}
+          onPress={() => handleSettingPress("Edit Profile")}
         />
-        
+
         <ProfileItem
           icon="shield-checkmark-outline"
           title="Privacy & Security"
           subtitle="Manage your privacy settings"
-          onPress={() => handleSettingPress('Privacy & Security')}
+          onPress={() => handleSettingPress("Privacy & Security")}
         />
-        
+
         <ProfileItem
           icon="notifications-outline"
           title="Notifications"
           subtitle="Configure push notifications"
-          onPress={() => handleSettingPress('Notifications')}
+          onPress={() => handleSettingPress("Notifications")}
         />
       </View>
 
       {/* App Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Settings</Text>
-        
+
         <ProfileItem
           icon="color-palette-outline"
           title="Theme"
           subtitle="Light mode"
-          onPress={() => handleSettingPress('Theme')}
+          onPress={() => handleSettingPress("Theme")}
         />
-        
+
         <ProfileItem
           icon="language-outline"
           title="Language"
           subtitle="English"
-          onPress={() => handleSettingPress('Language')}
+          onPress={() => handleSettingPress("Language")}
         />
-        
+
         <ProfileItem
           icon="download-outline"
           title="Offline Data"
           subtitle="Sync and storage settings"
-          onPress={() => handleSettingPress('Offline Data')}
+          onPress={() => handleSettingPress("Offline Data")}
         />
       </View>
 
       {/* Connection Info */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Connection</Text>
-        
+
+        {/* <ProfileItem
+          icon="globe-outline"
+          title="Frappe Site"
+          subtitle={
+            siteUrl
+              ? siteUrl.replace("https://", "").replace("http://", "")
+              : "Not Connected"
+          }
+          onPress={() => Alert.alert("Frappe Site", BASE_URI)}
+          showArrow={false}
+        /> */}
+
         <ProfileItem
           icon="globe-outline"
           title="Frappe Site"
-          subtitle={BASE_URI.replace('https://', '').replace('http://', '')}
-          onPress={() => Alert.alert('Frappe Site', BASE_URI)}
+          subtitle={
+            siteUrl
+              ? siteUrl.replace("https://", "").replace("http://", "")
+              : "Not Connected"
+          }
+          onPress={() => Alert.alert("Frappe Site", siteUrl || "Not Connected")}
           showArrow={false}
         />
-        
+
         <ProfileItem
           icon="sync-outline"
           title="Last Sync"
           subtitle="Just now"
-          onPress={() => handleSettingPress('Sync Status')}
+          onPress={() => handleSettingPress("Sync Status")}
           showArrow={false}
         />
       </View>
@@ -158,19 +176,19 @@ const ProfileTabScreen = () => {
       {/* Support */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
-        
+
         <ProfileItem
           icon="help-circle-outline"
           title="Help & Support"
           subtitle="Get help and contact support"
-          onPress={() => handleSettingPress('Help & Support')}
+          onPress={() => handleSettingPress("Help & Support")}
         />
-        
+
         <ProfileItem
           icon="information-circle-outline"
           title="About"
           subtitle="App version 1.0.0"
-          onPress={() => handleSettingPress('About')}
+          onPress={() => handleSettingPress("About")}
         />
       </View>
 
@@ -195,15 +213,15 @@ const ProfileTabScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
   },
   profileHeader: {
     paddingTop: 40,
     paddingBottom: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   profileHeaderContent: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   avatarContainer: {
     marginBottom: 16,
@@ -212,35 +230,35 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   userName: {
     fontSize: width > 768 ? 26 : 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: width > 768 ? 18 : 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
     marginBottom: 12,
   },
   connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
   connectionText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: width > 768 ? 16 : 14,
-    fontWeight: '500',
+    fontWeight: "500",
     marginLeft: 6,
   },
   section: {
@@ -249,19 +267,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: width > 768 ? 20 : 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 16,
     paddingHorizontal: 4,
   },
   profileItem: {
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
     padding: width > 768 ? 20 : 16,
     marginBottom: 2,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -274,9 +292,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   profileItemContent: {
@@ -284,28 +302,28 @@ const styles = StyleSheet.create({
   },
   profileItemTitle: {
     fontSize: width > 768 ? 18 : 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 2,
   },
   profileItemSubtitle: {
     fontSize: width > 768 ? 16 : 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   logoutContainer: {
     paddingHorizontal: 16,
     marginTop: 32,
   },
   logoutButton: {
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: width > 768 ? 20 : 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
-    shadowColor: '#000',
+    borderColor: "#FEE2E2",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -316,8 +334,8 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: width > 768 ? 18 : 16,
-    fontWeight: '600',
-    color: '#FF3D71',
+    fontWeight: "600",
+    color: "#FF3D71",
     marginLeft: 8,
   },
   bottomSpacing: {

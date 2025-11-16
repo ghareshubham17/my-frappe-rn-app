@@ -1,25 +1,18 @@
 import React from 'react';
 import {
   StyleSheet,
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   Dimensions,
   Alert,
-  Platform,
-  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
-
-// Get status bar height for different devices
-const getStatusBarHeight = () => {
-    return StatusBar.currentHeight || 0;
-};
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -56,7 +49,7 @@ const Navbar = () => {
       end={{ x: 1, y: 1 }}
       style={styles.navbar}
     >
-      <SafeAreaView>
+      <SafeAreaView edges={['top']}>
         <View style={styles.navbarContent}>
           {/* Left Side - Brand and Greeting */}
           <View style={styles.leftSection}>
@@ -97,8 +90,7 @@ const Navbar = () => {
 const styles = StyleSheet.create({
   navbar: {
     paddingBottom: 16,
-    // Ensure proper spacing from status bar
-    paddingTop: Platform.OS === 'android' ? getStatusBarHeight() : 0,
+    // SafeAreaView with edges={['top']} handles top padding automatically
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -1,15 +1,18 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useCallback } from 'react';
-import { BASE_URI } from '../data/constants';
 
 export const useFrappeService = () => {
-  const { isAuthenticated, makeResourceCall, makeMethodCall } = useAuth();
+  const { isAuthenticated, siteUrl } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const withErrorHandling = async (operation) => {
     if (!isAuthenticated) {
       throw new Error('User not authenticated');
+    }
+
+    if (!siteUrl) {
+      throw new Error('Site URL not configured');
     }
 
     try {
@@ -47,7 +50,7 @@ export const useFrappeService = () => {
         params.append('limit_page_length', options.limit.toString());
       }
 
-      const url = `${BASE_URI}/api/resource/${doctype}?${params.toString()}`;
+      const url = `${siteUrl}/api/resource/${doctype}?${params.toString()}`;
       console.log('Direct API URL:', url);
 
       const response = await fetch(url, {
@@ -67,11 +70,11 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.data || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const getDoc = useCallback(async (doctype, name) => {
     return withErrorHandling(async () => {
-      const url = `${BASE_URI}/api/resource/${doctype}/${encodeURIComponent(name)}`;
+      const url = `${siteUrl}/api/resource/${doctype}/${encodeURIComponent(name)}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -90,11 +93,11 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.data || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const createDoc = useCallback(async (doctype, doc) => {
     return withErrorHandling(async () => {
-      const url = `${BASE_URI}/api/resource/${doctype}`;
+      const url = `${siteUrl}/api/resource/${doctype}`;
       console.log('Creating document via direct API:', url, doc);
 
       const response = await fetch(url, {
@@ -115,11 +118,11 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.data || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const updateDoc = useCallback(async (doctype, name, doc) => {
     return withErrorHandling(async () => {
-      const url = `${BASE_URI}/api/resource/${doctype}/${encodeURIComponent(name)}`;
+      const url = `${siteUrl}/api/resource/${doctype}/${encodeURIComponent(name)}`;
       
       const response = await fetch(url, {
         method: 'PUT',
@@ -139,11 +142,11 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.data || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const deleteDoc = useCallback(async (doctype, name) => {
     return withErrorHandling(async () => {
-      const url = `${BASE_URI}/api/resource/${doctype}/${encodeURIComponent(name)}`;
+      const url = `${siteUrl}/api/resource/${doctype}/${encodeURIComponent(name)}`;
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -161,11 +164,11 @@ export const useFrappeService = () => {
 
       return { message: 'Document deleted successfully' };
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const call = useCallback(async (method, params = {}) => {
     return withErrorHandling(async () => {
-      const url = `${BASE_URI}/api/method/${method}`;
+      const url = `${siteUrl}/api/method/${method}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -185,12 +188,12 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.message || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   const callGet = useCallback(async (method, params = {}) => {
     return withErrorHandling(async () => {
       const queryParams = new URLSearchParams(params).toString();
-      const url = `${BASE_URI}/api/method/${method}${queryParams ? `?${queryParams}` : ''}`;
+      const url = `${siteUrl}/api/method/${method}${queryParams ? `?${queryParams}` : ''}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -209,7 +212,7 @@ export const useFrappeService = () => {
       const data = await response.json();
       return data.message || data;
     });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, siteUrl]);
 
   // Utility methods using direct API calls
   const getCount = useCallback(async (doctype, filters = {}) => {

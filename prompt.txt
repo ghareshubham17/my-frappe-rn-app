@@ -1,0 +1,31 @@
+Project Requirements: React Native App with Frappe Framework Integration
+
+I want to create a React Native app integrated with Frappe Framework. Here are the detailed requirements:
+
+1. APP FLOW:
+- When the app is first installed, the user should enter the URL of their Frappe Framework site
+- After URL setup, show a login page where users enter their username and password
+- Upon successful login, navigate to the employee dashboard
+
+2. FRAPPE BACKEND - EMPLOYEE DOCTYPE CUSTOMIZATION:
+
+Add three custom fields to the Employee doctype:
+
+a) Allow ESS (Checkbox)
+   - Field Type: Check
+   - Field Name: custom_allow_ess
+   - Label: "Allow Employee Self Service"
+   - Description: When checked, this employee can login to the mobile app
+
+- User enters username and regular Frappe password on login screen
+- Backend should verify:
+  * If the employee has "Allow ESS" checkbox checked
+
+4. SECURITY REQUIREMENTS:
+- Only employees with "Allow ESS" enabled can login
+
+5. TECHNICAL STACK:
+- Frontend: React Native
+- Backend: Frappe Framework
+- Authentication: Frappe's built-in authentication + custom validation
+

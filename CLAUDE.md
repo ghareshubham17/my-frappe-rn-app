@@ -55,11 +55,26 @@ The app follows a **session-based authentication architecture** with a clear sep
   - All API calls use `credentials: 'include'` to send cookies automatically
   - NO Authorization headers are used
   - Session ID is stored in SecureStore for reference, but actual authentication is cookie-based
-  - Login flow: POST to `/api/method/login` → stores session cookie → fetches user profile
-  - Session validation: GET to `/api/method/frappe.auth.get_logged_user`
+  - Login flow with ESS validation:
+    1. POST to `/api/method/login` with username and password
+    2. Stores session cookie automatically
+    3. GET to `/api/method/frappe.auth.get_logged_user` to get user email
+    4. **GET Employee record** filtered by `user_id` matching logged user email
+    5. **Validates `custom_allow_ess` field is checked (value = 1)**
+    6. If ESS not enabled or no Employee record found → logout and show error
+    7. If ESS enabled → saves user data and proceeds with authentication
+  - Session validation on app startup:
+    - Verifies session with `/api/method/frappe.auth.get_logged_user`
+    - **Re-validates Employee's `custom_allow_ess` field is still enabled**
+    - If ESS disabled, session is cleared and user is logged out
   - Logout: POST to `/api/method/logout` then clears local storage
 
 **Important**: When making new API calls, always use `credentials: 'include'` and never add Authorization headers.
+
+**Employee Self-Service (ESS) Requirement**:
+- Only employees with `custom_allow_ess = 1` in their Employee doctype can access the app
+- The Employee record must have a `user_id` field linking to the Frappe user
+- If ESS is disabled after login, the user will be logged out on next app startup
 
 ### Frappe API Integration
 
@@ -111,9 +126,15 @@ src/
 ## Important Notes
 
 ### Backend Configuration
-- The app is hardcoded to connect to a specific Frappe backend URL in `src/data/constants.js`
-- Change `BASE_URI` to point to a different Frappe instance if needed
+- The app uses dynamic site URL configuration (entered by user on first launch in SiteSetupScreen)
+- Site URL is stored securely in SecureStore and managed by AuthContext
 - Ensure CORS is properly configured on the Frappe backend for mobile app access
+- **Required Employee Doctype Custom Field**:
+  - Field Name: `custom_allow_ess`
+  - Field Type: Check (Checkbox)
+  - Label: "Allow Employee Self Service"
+  - Description: When checked, this employee can login to the mobile app
+  - This field MUST be added to the Employee doctype for the app to work correctly
 
 ### Platform-Specific Settings
 - **Android**: Package name is `com.shubham17g.MyApp` with version code auto-increment

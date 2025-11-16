@@ -2,8 +2,10 @@ import React from 'react';
 import {
   StyleSheet,
   StatusBar,
-  View,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,18 +20,26 @@ import ProfileTabScreen from '../tabs/ProfileTabScreen';
 const Tab = createBottomTabNavigator();
 
 const HomeScreen = () => {
+  const insets = useSafeAreaInsets();
+
+  // Calculate dynamic tab bar height based on device safe area
+  const tabBarHeight = Platform.select({
+    ios: 60 + insets.bottom,
+    android: 60,
+  });
+
   return (
-    <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="#667eea" 
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#667eea"
         translucent={false}
       />
-      
+
       {/* Separate Navbar Component */}
       <Navbar />
-      
-      {/* Tab Navigator with Simple Style */}
+
+      {/* Tab Navigator with Dynamic Safe Area Handling */}
       <Tab.Navigator
         screenOptions={{
           tabBarActiveTintColor: '#667eea',
@@ -38,8 +48,8 @@ const HomeScreen = () => {
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
             borderTopColor: '#E5E7EB',
-            height: 60,
-            paddingBottom: 8,
+            height: tabBarHeight,
+            paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
             paddingTop: 8,
           },
           tabBarLabelStyle: {
@@ -80,7 +90,7 @@ const HomeScreen = () => {
           }}
         />
       </Tab.Navigator>
-    </View>
+    </SafeAreaView>
   );
 };
 
