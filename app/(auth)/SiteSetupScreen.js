@@ -8,7 +8,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   StatusBar,
   Dimensions,
 } from "react-native";
@@ -19,7 +18,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
-const SiteSetupScreen = ({ navigation }) => {
+export default function SiteSetupScreen() {
   const { setupSiteUrl } = useAuth();
   const [siteUrl, setSiteUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,8 +34,7 @@ const SiteSetupScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      // Success! AuthContext state change will automatically navigate to Login screen
-      // No need to manually navigate - AppNavigator's conditional rendering handles it
+      // Success! Auth state change triggers navigation via app/_layout.js
     } else {
       Alert.alert("Connection Failed", result.error);
     }
@@ -46,7 +44,6 @@ const SiteSetupScreen = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#667eea" />
 
-      {/* Background Gradient */}
       <LinearGradient
         colors={["#667eea", "#764ba2", "#f093fb"]}
         start={{ x: 0, y: 0 }}
@@ -54,7 +51,6 @@ const SiteSetupScreen = ({ navigation }) => {
         style={styles.backgroundGradient}
       />
 
-      {/* Decorative circles */}
       <View style={styles.circle1} />
       <View style={styles.circle2} />
       <View style={styles.circle3} />
@@ -65,7 +61,6 @@ const SiteSetupScreen = ({ navigation }) => {
           style={styles.keyboardView}
         >
           <View style={styles.setupContainer}>
-            {/* Logo/Brand Section */}
             <View style={styles.brandContainer}>
               <View style={styles.logoContainer}>
                 <Ionicons name="globe-outline" size={40} color="#667eea" />
@@ -73,7 +68,6 @@ const SiteSetupScreen = ({ navigation }) => {
               <Text style={styles.brandTitle}>Welcome to ESS Mobile</Text>
             </View>
 
-            {/* Form Section */}
             <View style={styles.formContainer}>
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Workspace URL</Text>
@@ -103,7 +97,6 @@ const SiteSetupScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {/* Connect Button */}
               <TouchableOpacity
                 style={[styles.connectButton, loading && styles.buttonDisabled]}
                 onPress={handleSetup}
@@ -111,9 +104,7 @@ const SiteSetupScreen = ({ navigation }) => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={
-                    loading ? ["#9CA3AF", "#9CA3AF"] : ["#667eea", "#764ba2"]
-                  }
+                  colors={loading ? ["#9CA3AF", "#9CA3AF"] : ["#667eea", "#764ba2"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.buttonGradient}
@@ -133,7 +124,7 @@ const SiteSetupScreen = ({ navigation }) => {
       </SafeAreaView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -187,10 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 32,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 8,
@@ -213,11 +201,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 8,
-  },
-  brandSubtitle: {
-    fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "400",
   },
   formContainer: {
     marginBottom: 24,
@@ -254,11 +237,6 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     fontWeight: "400",
   },
-  helperText: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 6,
-  },
   connectButton: {
     borderRadius: 12,
     overflow: "hidden",
@@ -282,15 +260,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  infoContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  infoText: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 4,
-  },
 });
-
-export default SiteSetupScreen;
