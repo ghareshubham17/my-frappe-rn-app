@@ -3,18 +3,16 @@ from frappe import _
 
 
 @frappe.whitelist(allow_guest=True)
-def mobile_app_login(usr, app_password, device_id):
-	# print(usr)
-	# print(app_password)
-	# print(device_id)
-	# print("*********************")
+def mobile_app_login(usr, app_password, device_id, device_model, device_brand):
 	"""
-	Authenticate user for mobile app with username/app_id and app password
+	Authenticate user for mobile app with app_id and app password
 
 	Args:
-		usr: Username/Email OR App ID (backend will auto-detect)
+		usr: App ID (unique identifier set in Employee record)
 		app_password: App password set in Employee record
 		device_id: Unique device identifier from mobile app
+		device_model: Device model name (e.g., "iPhone 14 Pro", "Galaxy S21")
+		device_brand: Device brand/manufacturer (e.g., "Apple", "Samsung")
 
 	Returns:
 		dict: Authentication result with user details or error message
@@ -26,83 +24,32 @@ def mobile_app_login(usr, app_password, device_id):
 		if not usr:
 			return {
 				"success": False,
-				"message": _("Username or App ID is required")
+				"message": _("App ID is required")
 			}
 
-		# print(f"Mobile login attempt with identifier: {usr}")
-
-		# Step 1: Intelligent detection - check if usr is an app_id or username/email
-		# First, try to find user_id by app_id in Employee table
-		user_id_from_app_id = frappe.db.get_value(
-			"Employee",
-			{"app_id": usr},
-			"user_id"
-		)
-
-		actual_user = None
-		login_method = None
-
-		if user_id_from_app_id:
-			# It's an app_id, convert to user_id
-			# print(f"Detected app_id '{usr}', mapped to user: {user_id_from_app_id}")
-			actual_user = user_id_from_app_id
-			login_method = "app_id"
-		else:
-			# Not an app_id, check if it's a valid username or email
-			# Check if usr exists in User table (could be username or email)
-			if frappe.db.exists("User", usr):
-				# Direct username match
-				actual_user = usr
-				login_method = "username"
-			else:
-				# Try to find by email
-				user_by_email = frappe.db.get_value("User", {"email": usr}, "name")
-				if user_by_email:
-					actual_user = user_by_email
-					login_method = "email"
-
-			if actual_user:
-				# print(f"Treating as {login_method}: {actual_user}")
-				pass
-			else:
-				# print(f"No user found for identifier: {usr}")
-				pass
-
-		# Step 2: Validate that we found a user
-		if not actual_user:
-			return {
-				"success": False,
-				"message": _("Invalid username, email, or app ID")
-			}
-
-		# Use actual_user for all subsequent operations
-		usr = actual_user
-
-		# Step 3: Get employee record linked to this user
-		# Note: Don't fetch password field with get_value - it won't work for Password field type
+		# Step 1: Find employee by app_id
 		employee = frappe.db.get_value(
 			"Employee",
-			{"user_id": usr},
-			["name", "employee_name", "allow_ess", "device_id", "device_registered_on", "app_id"],
+			{"app_id": usr},
+			["name", "employee_name", "user_id", "allow_ess", "device_id", "device_model",
+			 "device_brand", "device_registered_on", "app_id", "require_password_reset"],
 			as_dict=True
 		)
 
 		if not employee:
 			return {
 				"success": False,
-				"message": _("No employee record found for this user")
+				"message": _("Invalid App ID")
 			}
 
-		# print(f"Employee found: {employee.name}")
-
-		# Step 4: Check if ESS is allowed
+		# Step 2: Check if ESS is allowed
 		if not employee.allow_ess:
 			return {
 				"success": False,
 				"message": _("Employee Self Service is not enabled for this account")
 			}
 
-		# Step 5: Verify app password
+		# Step 3: Verify app password
 		# Get employee document to access password field
 		employee_doc = frappe.get_doc("Employee", employee.name)
 
@@ -121,49 +68,47 @@ def mobile_app_login(usr, app_password, device_id):
 				"message": _("Invalid app password")
 			}
 
-		# Step 6: Handle device ID binding
-		# print(f"Client Device ID: {device_id}")
-		# print(f"Registered Device ID: {employee.device_id}")
-
+		# Step 4: Handle device binding
+		# Check if device is already registered
 		if not employee.device_id:
-			# First login - register device ID and timestamp
+			# First login - register device information
 			from frappe.utils import now_datetime
-			# print(f"First login - Registering device ID: {device_id}")
 			frappe.db.set_value("Employee", employee.name, {
 				"device_id": device_id,
+				"device_model": device_model,
+				"device_brand": device_brand,
 				"device_registered_on": now_datetime()
 			})
 			frappe.db.commit()
 		else:
-			# Subsequent login - verify device ID
-			if employee.device_id != device_id:
-				# print(f"Device ID mismatch! Registered: {employee.device_id}, Current: {device_id}")
+			# Subsequent login - verify device information matches
+			if (employee.device_id != device_id or
+				employee.device_model != device_model or
+				employee.device_brand != device_brand):
 				return {
 					"success": False,
-					"message": _("Access denied. This account is registered to a different device")
+					"message": _("Access denied. This account is registered to a different device. Please contact HR to reset device access.")
 				}
-			# print("Device ID verified successfully")
 
-		# Step 7: Login the user
-		frappe.local.login_manager.login_as(usr)
+		# Step 5: Login the user
+		frappe.local.login_manager.login_as(employee.user_id)
 
 		# Generate API credentials for the user
-		api_key, api_secret = generate_api_credentials(usr)
+		api_key, api_secret = generate_api_credentials(employee.user_id)
 
-		# print(f"API credentials generated - Key: {api_key}")
-
-		# Step 8: Return success with all data including device_id and app_id
+		# Step 6: Return success with all data including require_password_reset flag
 		return {
 			"success": True,
 			"message": _("Login successful"),
 			"data": {
 				"employee_id": employee.name,
 				"employee_name": employee.employee_name,
-				"user": usr,
+				"user": employee.user_id,
 				"api_key": api_key,
 				"api_secret": api_secret,
 				"device_id": device_id,
-				"app_id": employee.app_id
+				"app_id": employee.app_id,
+				"require_password_reset": employee.require_password_reset or 0
 			}
 		}
 
@@ -204,6 +149,62 @@ def generate_api_credentials(user):
 
 
 @frappe.whitelist()
+def reset_app_password(new_password):
+	"""
+	Reset app password for authenticated user (called on first login)
+
+	Args:
+		new_password: New password to set
+
+	Returns:
+		dict: Success or error message
+	"""
+	try:
+		user = frappe.session.user
+
+		if user == "Guest":
+			return {
+				"success": False,
+				"message": _("Authentication required")
+			}
+
+		# Get employee record
+		employee = frappe.db.get_value(
+			"Employee",
+			{"user_id": user},
+			["name", "require_password_reset"],
+			as_dict=True
+		)
+
+		if not employee:
+			return {
+				"success": False,
+				"message": _("Employee record not found")
+			}
+
+		# Get employee document to update password
+		employee_doc = frappe.get_doc("Employee", employee.name)
+
+		# Set new password and clear reset flag
+		employee_doc.app_password = new_password
+		employee_doc.require_password_reset = 0
+		employee_doc.save(ignore_permissions=True)
+		frappe.db.commit()
+
+		return {
+			"success": True,
+			"message": _("Password reset successfully")
+		}
+
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), _("Reset App Password Error"))
+		return {
+			"success": False,
+			"message": _("An error occurred. Please try again")
+		}
+
+
+@frappe.whitelist()
 def reset_device_id(employee_id):
 	"""
 	Reset device ID for an employee (Admin only)
@@ -223,6 +224,8 @@ def reset_device_id(employee_id):
 
 		frappe.db.set_value("Employee", employee_id, {
 			"device_id": None,
+			"device_model": None,
+			"device_brand": None,
 			"device_registered_on": None
 		})
 		frappe.db.commit()

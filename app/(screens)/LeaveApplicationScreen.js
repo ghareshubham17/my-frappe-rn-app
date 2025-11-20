@@ -16,8 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useAuth } from '../contexts/AuthContext';
-import { useFrappeService } from '../services/frappeService';
+import { useAuth } from '../_contexts/AuthContext';
+import { useFrappeService } from '../_services/frappeService';
 
 const { width } = Dimensions.get('window');
 

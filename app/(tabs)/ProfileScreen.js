@@ -10,12 +10,14 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../_contexts/AuthContext";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
 const ProfileTabScreen = () => {
   const { user, logout, siteUrl } = useAuth();
+  const router = useRouter();
 
 
   const handleLogout = () => {
@@ -90,9 +92,9 @@ const ProfileTabScreen = () => {
 
         <ProfileItem
           icon="person-outline"
-          title="Edit Profile"
-          subtitle="Update your personal information"
-          onPress={() => handleSettingPress("Edit Profile")}
+          title="Profile Details"
+          subtitle="View your complete employee information"
+          onPress={() => router.push("/(screens)/ProfileDetailsScreen")}
         />
 
         <ProfileItem

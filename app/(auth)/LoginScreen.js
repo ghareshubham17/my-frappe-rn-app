@@ -12,30 +12,56 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../_contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
 const LoginScreen = () => {
-  // const { login } = useAuth();
-  const { login, siteUrl } = useAuth();
-  const [name, setName] = useState("");
+  const { login, siteUrl, setupSiteUrl } = useAuth();
+  const [workspaceUrl, setWorkspaceUrl] = useState("");
+  const [appId, setAppId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!name.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both username and password.");
+    // Validate workspace URL if not already set
+    if (!siteUrl && !workspaceUrl.trim()) {
+      Alert.alert("Error", "Please enter your Workspace URL.");
+      return;
+    }
+
+    if (!appId.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter both App ID and App Password.");
       return;
     }
 
     try {
       setIsLoading(true);
-      const result = await login(name, password);
+
+      let urlToUse = siteUrl;
+
+      // Setup workspace URL if not already configured
+      if (!siteUrl) {
+        const setupResult = await setupSiteUrl(workspaceUrl);
+        if (!setupResult.success) {
+          Alert.alert("Connection Failed", setupResult.error);
+          setIsLoading(false);
+          return;
+        }
+        // Use the URL returned from setup (state update is async)
+        urlToUse = setupResult.url;
+      }
+
+      // Proceed with login, passing the URL explicitly to handle async state
+      const result = await login(appId, password, urlToUse);
 
       if (!result.success) {
         Alert.alert(
@@ -43,6 +69,9 @@ const LoginScreen = () => {
           result.error || "Please check your credentials"
         );
       }
+      // If successful, AuthContext state change will trigger automatic navigation
+      // - If require_password_reset is true: navigates to ResetPasswordScreen
+      // - Otherwise: navigates to main app tabs
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "An unexpected error occurred");
@@ -72,50 +101,94 @@ const LoginScreen = () => {
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <View style={styles.loginContainer}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={true}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.loginContainer}>
             {/* Logo/Brand Section */}
             <View style={styles.brandContainer}>
               <View style={styles.logoContainer}>
-                {/* You can replace this with your own logo */}
-                <Ionicons name="business" size={40} color="#667eea" />
+                <Ionicons name="business" size={52} color="#667eea" />
               </View>
             </View>
 
-
             {siteUrl && (
               <View style={styles.siteInfo}>
-                <Text style={styles.siteLabel}>Connected to:</Text>
-                <Text style={styles.siteUrl}>
-                  {siteUrl.replace("https://", "").replace("http://", "")}
-                </Text>
+                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <View style={styles.siteInfoText}>
+                  <Text style={styles.siteLabel}>Connected to</Text>
+                  <Text style={styles.siteUrl}>
+                    {siteUrl.replace("https://", "").replace("http://", "")}
+                  </Text>
+                </View>
               </View>
             )}
             
             {/* Form Section */}
             <View style={styles.formContainer}>
+              {/* Workspace URL - only show if not already configured */}
+              {!siteUrl && (
+                <View style={styles.inputWrapper}>
+                  <Text style={styles.inputLabel}>Workspace URL</Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      workspaceUrl.length > 0 && styles.inputContainerFocused,
+                    ]}
+                  >
+                    <Ionicons
+                      name="link-outline"
+                      size={20}
+                      color="#9CA3AF"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      placeholder="your-site.frappe.cloud"
+                      value={workspaceUrl}
+                      onChangeText={setWorkspaceUrl}
+                      style={styles.input}
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="url"
+                      autoComplete="off"
+                      textContentType="none"
+                      importantForAutofill="no"
+                    />
+                  </View>
+                </View>
+              )}
+
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Username</Text>
+                <Text style={styles.inputLabel}>App ID</Text>
                 <View
                   style={[
                     styles.inputContainer,
-                    name.length > 0 && styles.inputContainerFocused,
+                    appId.length > 0 && styles.inputContainerFocused,
                   ]}
                 >
                   <Ionicons
-                    name="person-outline"
+                    name="card-outline"
                     size={20}
                     color="#9CA3AF"
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    placeholder="Enter your username or email"
-                    value={name}
-                    onChangeText={setName}
+                    placeholder="Enter your App ID"
+                    value={appId}
+                    onChangeText={setAppId}
                     style={styles.input}
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    autoComplete="username"
+                    textContentType="username"
                   />
                 </View>
               </View>
@@ -178,20 +251,21 @@ const LoginScreen = () => {
                 >
                   {isLoading ? (
                     <View style={styles.loadingContainer}>
+                      <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
                       <Text style={styles.buttonText}>Signing in...</Text>
                     </View>
                   ) : (
-                    <Text style={styles.buttonText}>Sign In</Text>
+                    <>
+                      <Ionicons name="log-in-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={styles.buttonText}>Sign In</Text>
+                    </>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-
-              {/* Additional Info */}
-              <View style={styles.infoContainer}>
-                <Text style={styles.infoText}>🔐 Secure Login</Text>
-              </View>
             </View>
-          </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -242,99 +316,125 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   loginContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
     padding: 32,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 16,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 40,
+    elevation: 15,
   },
   brandContainer: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 28,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F3F4F6",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#F8F7FF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-  },
-  brandTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 8,
-  },
-  brandSubtitle: {
-    fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "400",
-    marginBottom: 16,
+    shadowColor: "#667eea",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
   },
   siteInfo: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    flexDirection: "row",
     alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: "#BBF7D0",
+  },
+  siteInfoText: {
+    marginLeft: 10,
+    flex: 1,
   },
   siteLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
+    fontSize: 11,
+    color: "#059669",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   siteUrl: {
-    fontSize: 14,
-    color: "#374151",
-    fontWeight: "600",
+    fontSize: 15,
+    color: "#065F46",
+    fontWeight: "700",
     marginTop: 2,
   },
   formContainer: {
-    marginBottom: 24,
+    marginTop: 4,
   },
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#374151",
     marginBottom: 8,
+    letterSpacing: 0.2,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
-    backgroundColor: "#FAFAFA",
-    minHeight: 56,
+    backgroundColor: "#F9FAFB",
+    minHeight: 54,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: "#667eea",
     backgroundColor: "#FFFFFF",
+    shadowColor: "#667eea",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 14,
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: "#1F2937",
-    fontWeight: "400",
+    fontWeight: "500",
   },
   passwordInput: {
     paddingRight: 40,
@@ -342,15 +442,24 @@ const styles = StyleSheet.create({
   eyeIcon: {
     position: "absolute",
     right: 16,
-    padding: 4,
+    padding: 6,
   },
   loginButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
     marginTop: 24,
+    shadowColor: "#667eea",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
   loginButtonGradient: {
     paddingVertical: 16,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     minHeight: 56,
@@ -361,20 +470,13 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  infoContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  infoText: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });
 

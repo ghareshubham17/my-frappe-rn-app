@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 
 /**
  * Screens Layout - Stack navigator for authenticated app screens
- * Screens: LeaveApplicationScreen, HolidaysScreen, ReportsScreen, MonthlyAttendanceScreen
+ * Screens: LeaveApplicationScreen, HolidaysScreen, ReportsScreen, MonthlyAttendanceScreen, ProfileDetailsScreen
  */
 export default function ScreensLayout() {
   return (
@@ -21,6 +21,10 @@ export default function ScreensLayout() {
       />
       <Stack.Screen
         name="MonthlyAttendanceScreen"
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name="ProfileDetailsScreen"
         options={{ presentation: 'card' }}
       />
     </Stack>

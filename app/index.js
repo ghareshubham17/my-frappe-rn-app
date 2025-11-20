@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './_contexts/AuthContext';
 import { View, ActivityIndicator } from 'react-native';
 
 /**
@@ -7,7 +7,7 @@ import { View, ActivityIndicator } from 'react-native';
  * Redirects based on authentication state
  */
 export default function Index() {
-  const { isAuthenticated, loading, isFirstLaunch, siteUrl } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   // Show loading while checking auth
   if (loading) {
@@ -18,11 +18,7 @@ export default function Index() {
     );
   }
 
-  // Redirect based on state
-  if (!siteUrl || isFirstLaunch) {
-    return <Redirect href="/(auth)/SiteSetupScreen" />;
-  }
-
+  // Redirect based on authentication state
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/LoginScreen" />;
   }

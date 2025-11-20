@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { useFrappeService } from '../services/frappeService';
+import { useAuth } from '../_contexts/AuthContext';
+import { useFrappeService } from '../_services/frappeService';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 
 const { width } = Dimensions.get('window');
@@ -362,7 +361,7 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
@@ -488,7 +487,7 @@ const HomeScreen = () => {
         currentMonth={currentMonth}
         setCurrentMonth={setCurrentMonth}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -501,7 +500,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 30,
+    paddingBottom: 16,
   },
   welcomeCard: {
     marginHorizontal: 20,

@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './_contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as eva from '@eva-design/eva';
 import { ApplicationProvider } from '@ui-kitten/components';
@@ -15,7 +15,7 @@ import { ApplicationProvider } from '@ui-kitten/components';
  * - (screens) - Other authenticated screens
  */
 function RootLayoutNav() {
-  const { isAuthenticated, loading, isFirstLaunch, siteUrl } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -27,15 +27,18 @@ function RootLayoutNav() {
     const inScreensGroup = segments[0] === '(screens)';
 
     // Determine where user should be
-    if (!siteUrl || isFirstLaunch) {
-      // Need site setup
-      if (!inAuthGroup || segments[1] !== 'SiteSetupScreen') {
-        router.replace('/(auth)/SiteSetupScreen');
-      }
-    } else if (!isAuthenticated) {
-      // Need login
-      if (!inAuthGroup || segments[1] !== 'LoginScreen') {
-        router.replace('/(auth)/LoginScreen');
+    if (!isAuthenticated) {
+      // Check if user exists but needs password reset
+      if (user && user.require_password_reset) {
+        // Show password reset screen
+        if (!inAuthGroup || segments[1] !== 'ResetPasswordScreen') {
+          router.replace('/(auth)/ResetPasswordScreen');
+        }
+      } else {
+        // Need login (LoginScreen will handle workspace URL input if not set)
+        if (!inAuthGroup || segments[1] !== 'LoginScreen') {
+          router.replace('/(auth)/LoginScreen');
+        }
       }
     } else {
       // Authenticated - go to tabs if not already in app
@@ -43,7 +46,7 @@ function RootLayoutNav() {
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, loading, segments, siteUrl, isFirstLaunch]);
+  }, [isAuthenticated, loading, segments, user]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

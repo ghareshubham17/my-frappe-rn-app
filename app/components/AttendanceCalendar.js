@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFrappeService } from '../services/frappeService';
+import { useFrappeService } from '../_services/frappeService';
 
 const { width } = Dimensions.get('window');
 const CELL_WIDTH = (width - 40) / 7; // 7 days in a week, 40px for padding

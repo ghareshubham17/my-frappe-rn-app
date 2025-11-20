@@ -19,10 +19,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [siteUrl, setSiteUrl] = useState(null);
-  const [isFirstLaunch, setIsFirstLaunch] = useState(false);
 
-  // Get or generate unique device ID using actual device characteristics
-  const getDeviceId = async () => {
+  // Get device information including ID, model, and brand
+  const getDeviceInfo = async () => {
     try {
       // Try to get stored device ID first (persists across app restarts)
       let deviceId = await SecureStore.getItemAsync("device_id");
@@ -56,23 +55,36 @@ export const AuthProvider = ({ children }) => {
         // Store it securely for future use
         await SecureStore.setItemAsync("device_id", deviceId);
         console.log("📱 Generated new device ID using device fingerprint");
-        console.log("Device Info:", {
-          model: Device.modelName,
-          brand: Device.brand,
-          os: `${Platform.OS} ${Device.osVersion}`,
-          name: Device.deviceName
-        });
       } else {
         console.log("📱 Retrieved existing device ID from storage");
       }
 
-      return deviceId;
+      // Get device model and brand
+      const deviceModel = Device.modelName || 'Unknown Model';
+      const deviceBrand = Device.brand || 'Unknown Brand';
+
+      console.log("Device Info:", {
+        id: deviceId,
+        model: deviceModel,
+        brand: deviceBrand,
+        os: `${Platform.OS} ${Device.osVersion}`,
+      });
+
+      return {
+        device_id: deviceId,
+        device_model: deviceModel,
+        device_brand: deviceBrand
+      };
     } catch (error) {
-      console.error("Error getting device ID:", error);
+      console.error("Error getting device info:", error);
       // Fallback to session-based ID if everything fails
       const fallbackId = Constants.sessionId?.substring(0, 32) || `${Platform.OS}-${Date.now()}`;
-      console.warn("Using fallback device ID:", fallbackId);
-      return fallbackId;
+      console.warn("Using fallback device info");
+      return {
+        device_id: fallbackId,
+        device_model: 'Unknown Model',
+        device_brand: 'Unknown Brand'
+      };
     }
   };
 
@@ -85,17 +97,17 @@ export const AuthProvider = ({ children }) => {
     try {
       // Check if site URL is already configured
       const savedUrl = await SecureStore.getItemAsync("frappe_site_url");
-      
-      if (!savedUrl) {
-        // First time app launch - need URL setup
-        setIsFirstLaunch(true);
+
+      if (savedUrl) {
+        // URL exists, set it
+        setSiteUrl(savedUrl);
+        console.log("Site URL found:", savedUrl);
+      } else {
+        // No saved URL - LoginScreen will handle workspace URL input
+        console.log("No saved URL - user will enter on LoginScreen");
         setLoading(false);
         return;
       }
-
-      // URL exists, set it
-      setSiteUrl(savedUrl);
-      console.log("Site URL found:", savedUrl);
 
       // Check for existing API credentials
       const savedUser = await SecureStore.getItemAsync("frappe_user");
@@ -146,9 +158,16 @@ export const AuthProvider = ({ children }) => {
                 employeeData.data[0].allow_ess === 1
               ) {
                 // API credentials valid and ESS still enabled
-                setUser(JSON.parse(savedUser));
-                setIsAuthenticated(true);
-                console.log("Session restored successfully with API credentials");
+                const userData = JSON.parse(savedUser);
+                setUser(userData);
+
+                // Only set authenticated if password reset is NOT required
+                if (!userData.require_password_reset) {
+                  setIsAuthenticated(true);
+                  console.log("Session restored successfully with API credentials");
+                } else {
+                  console.log("Session restored but password reset required");
+                }
               } else {
                 // ESS disabled or no employee record
                 console.log("ESS disabled or employee record not found");
@@ -205,14 +224,13 @@ export const AuthProvider = ({ children }) => {
       if (testResponse.status === 403 || testResponse.status === 200) {
         // 403 means site exists but we're not authenticated (expected)
         // 200 means site exists and might have cached credentials
-        
+
         // Save the URL
         await SecureStore.setItemAsync("frappe_site_url", normalizedUrl);
         setSiteUrl(normalizedUrl);
-        setIsFirstLaunch(false);
-        
+
         console.log("Site URL configured successfully:", normalizedUrl);
-        return { success: true };
+        return { success: true, url: normalizedUrl };
       } else {
         throw new Error("Unable to connect to Frappe site");
       }
@@ -236,32 +254,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, appPassword) => {
+  const login = async (appId, appPassword, urlOverride = null) => {
     try {
       setLoading(true);
 
-      if (!siteUrl) {
+      // Use provided URL or fall back to state
+      const loginUrl = urlOverride || siteUrl;
+
+      if (!loginUrl) {
         throw new Error("Site URL not configured");
       }
 
-      console.log("Attempting mobile app login at:", siteUrl);
-      console.log("Username:", username);
+      console.log("Attempting mobile app login at:", loginUrl);
+      console.log("App ID:", appId);
 
-      // Get device ID
-      const deviceId = await getDeviceId();
-      console.log("Device ID:", deviceId);
+      // Get device info (ID, model, brand)
+      const deviceInfo = await getDeviceInfo();
+      console.log("Device Info:", deviceInfo);
 
       // Use mobile_app_login endpoint
-      const loginResponse = await fetch(`${siteUrl}/api/method/ashida.ashida_gaxis.api.mobile_auth.mobile_app_login`, {
+      const loginResponse = await fetch(`${loginUrl}/api/method/ashida.ashida_gaxis.api.mobile_auth.mobile_app_login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
         },
         body: JSON.stringify({
-          usr: username,
+          usr: appId,
           app_password: appPassword,
-          device_id: deviceId,
+          device_id: deviceInfo.device_id,
+          device_model: deviceInfo.device_model,
+          device_brand: deviceInfo.device_brand,
         }),
       });
 
@@ -272,21 +295,24 @@ export const AuthProvider = ({ children }) => {
         const response = loginData.message;
 
         if (response.success && response.data) {
-          const { employee_id, employee_name, user, api_key, api_secret, device_id } = response.data;
+          const { employee_id, employee_name, user, api_key, api_secret, device_id, app_id, require_password_reset } = response.data;
 
           console.log("✅ Login successful!");
-          console.log("📱 Device ID registered/verified:", device_id);
+          console.log("📱 Device registered/verified:", deviceInfo.device_model, deviceInfo.device_brand);
           console.log("👤 Employee:", employee_name, `(${employee_id})`);
+          console.log("🔐 Require password reset:", require_password_reset);
 
           // All validations passed - proceed with login
           const userData = {
-            name: username,
+            name: appId,
             email: user,
             full_name: employee_name || user,
             employee_id: employee_id,
             api_key: api_key,
             api_secret: api_secret,
             device_id: device_id,
+            app_id: app_id,
+            require_password_reset: require_password_reset === 1,
           };
 
           // Save user data with API credentials
@@ -295,10 +321,17 @@ export const AuthProvider = ({ children }) => {
           await SecureStore.setItemAsync("frappe_api_secret", api_secret);
 
           setUser(userData);
-          setIsAuthenticated(true);
+
+          // Only set authenticated if password reset is NOT required
+          if (require_password_reset !== 1) {
+            setIsAuthenticated(true);
+          }
 
           console.log("Login successful with API credentials");
-          return { success: true };
+          return {
+            success: true,
+            require_password_reset: require_password_reset === 1
+          };
         } else {
           // Backend returned success: false with a message
           throw new Error(response.message || "Login failed");
@@ -312,10 +345,8 @@ export const AuthProvider = ({ children }) => {
       let errorMessage = "Login failed. Please check your credentials.";
 
       // Handle specific error messages from backend
-      if (error.message.includes("User does not exist")) {
-        errorMessage = "User does not exist. Please check your username.";
-      } else if (error.message.includes("No employee record found")) {
-        errorMessage = error.message;
+      if (error.message.includes("Invalid App ID")) {
+        errorMessage = "Invalid App ID. Please check your credentials.";
       } else if (error.message.includes("Employee Self Service is not enabled")) {
         errorMessage = error.message;
       } else if (error.message.includes("App password not set")) {
@@ -323,8 +354,8 @@ export const AuthProvider = ({ children }) => {
       } else if (error.message.includes("Invalid app password")) {
         errorMessage = "Invalid app password. Please try again.";
       } else if (error.message.includes("Access denied. This account is registered to a different device")) {
-        console.log("🚫 Device ID mismatch - login blocked");
-        errorMessage = "This account is registered to a different device. Please contact your administrator to reset device access.";
+        console.log("🚫 Device mismatch - login blocked");
+        errorMessage = "This account is registered to a different device. Please contact HR to reset device access.";
       } else if (error.message.includes("Network")) {
         errorMessage = "Network error. Please check your connection.";
       }
@@ -335,6 +366,52 @@ export const AuthProvider = ({ children }) => {
       };
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetPassword = async (newPassword) => {
+    try {
+      if (!user || !user.api_key || !user.api_secret) {
+        throw new Error("Not authenticated");
+      }
+
+      const authToken = `token ${user.api_key}:${user.api_secret}`;
+
+      const response = await fetch(
+        `${siteUrl}/api/method/ashida.ashida_gaxis.api.mobile_auth.reset_app_password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": authToken,
+          },
+          body: JSON.stringify({
+            new_password: newPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.message && data.message.success) {
+        // Update user data to clear require_password_reset flag
+        const updatedUser = { ...user, require_password_reset: false };
+        await SecureStore.setItemAsync("frappe_user", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setIsAuthenticated(true);
+
+        console.log("✅ Password reset successful");
+        return { success: true };
+      } else {
+        throw new Error(data.message?.message || "Password reset failed");
+      }
+    } catch (error) {
+      console.error("Password reset failed:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to reset password. Please try again.",
+      };
     }
   };
 
@@ -367,7 +444,6 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.deleteItemAsync("frappe_site_url");
       await clearAuthData();
       setSiteUrl(null);
-      setIsFirstLaunch(true);
     } catch (error) {
       console.error("Failed to reset site URL:", error);
     }
@@ -379,8 +455,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    resetPassword,
     siteUrl,
-    isFirstLaunch,
     setupSiteUrl,
     resetSiteUrl,
   };

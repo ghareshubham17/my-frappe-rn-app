@@ -10,7 +10,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFrappeService } from '../services/frappeService';
+import { useFrappeService } from '../_services/frappeService';
 
 const { width } = Dimensions.get('window');
 

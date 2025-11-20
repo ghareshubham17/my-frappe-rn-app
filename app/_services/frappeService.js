@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../_contexts/AuthContext';
 import { useState, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
