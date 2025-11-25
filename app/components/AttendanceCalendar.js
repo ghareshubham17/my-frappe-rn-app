@@ -50,11 +50,11 @@ const AttendanceCalendar = ({
 
   const processAttendanceData = useCallback((records) => {
     const dailyData = {};
-    
+
     records.forEach(record => {
       const recordDate = new Date(record.time);
       const dateKey = recordDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
+
       if (!dailyData[dateKey]) {
         dailyData[dateKey] = {
           date: dateKey,
@@ -63,7 +63,7 @@ const AttendanceCalendar = ({
           status: 'absent'
         };
       }
-      
+
       if (record.log_type === 'IN') {
         dailyData[dateKey].checkIns.push(record.time);
       } else if (record.log_type === 'OUT') {
@@ -122,7 +122,7 @@ const AttendanceCalendar = ({
 
       console.log('Fetched records:', records);
       console.log('Number of records:', records?.length || 0);
-      
+
       setMonthlyRecords(records || []);
       const processed = processAttendanceData(records || []);
       setProcessedData(processed);
@@ -355,25 +355,11 @@ const AttendanceCalendar = ({
         </View>
         
         <ScrollView style={styles.content}>
-          {/* Month Navigation */}
-          <View style={styles.monthNavigation}>
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateMonth(-1)}
-            >
-              <Ionicons name="chevron-back" size={24} color="#667eea" />
-            </TouchableOpacity>
-            
+          {/* Current Month Display (No Navigation) */}
+          <View style={styles.monthDisplay}>
             <Text style={styles.monthText}>
               {currentMonth?.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </Text>
-            
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateMonth(1)}
-            >
-              <Ionicons name="chevron-forward" size={24} color="#667eea" />
-            </TouchableOpacity>
           </View>
 
           {/* Legend */}
@@ -525,18 +511,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  monthDisplay: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 20,
     backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 16,
-  },
-  navButton: {
-    padding: 8,
   },
   monthText: {
     fontSize: 18,

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../_contexts/AuthContext';
 import { useFrappeService } from '../_services/frappeService';
@@ -117,18 +118,46 @@ const HomeScreen = () => {
     });
   };
 
+  // Get dynamic greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return 'Good Morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good Afternoon';
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good Evening';
+    } else {
+      return 'Good Night';
+    }
+  };
+
+  // Get dynamic icon based on time of day
+  const getGreetingIcon = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return { name: 'sunny', color: '#FF9800' }; // Morning - orange sun
+    } else if (hour >= 12 && hour < 17) {
+      return { name: 'sunny-outline', color: '#FFC107' }; // Afternoon - bright sun
+    } else if (hour >= 17 && hour < 21) {
+      return { name: 'partly-sunny', color: '#FF6F00' }; // Evening - sunset
+    } else {
+      return { name: 'moon', color: '#7B1FA2' }; // Night - moon
+    }
+  };
+
   // Core functions
   const checkTodayCheckinStatus = useCallback(async (employeeName) => {
     try {
       const { startTime, endTime } = getTodayDateRange();
 
       const checkins = await frappeService.getList('Employee Checkin', {
-        fields: ['name', 'employee', 'time', 'log_type'],
+        fields: ['name', 'employee', 'time', 'log_type', 'creation'],
         filters: {
           employee: employeeName,
-          time: ['between', [startTime, endTime]]
+          creation: ['between', [startTime, endTime]]
         },
-        order_by: 'time asc'
+        order_by: 'creation asc'
       });
 
       console.log('Today checkins:', checkins);
@@ -144,12 +173,98 @@ const HomeScreen = () => {
           setIsCheckedIn(false);
         } else if (inLog) {
           setShowCheckButton(true);
-          const time = new Date(inLog.time);
-          setCheckInTime(time.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          }));
+
+          // Try to get time from the inLog (time field or creation field)
+          let checkinTime = inLog.time || inLog.creation;
+
+          // If still missing, fetch the full document
+          if (!checkinTime) {
+            console.log('Time field missing in list response, fetching full document:', inLog.name);
+            try {
+              const fullDoc = await frappeService.getDoc('Employee Checkin', inLog.name);
+              console.log('Full checkin document:', fullDoc);
+              // Try time field first, fall back to creation
+              checkinTime = fullDoc.time || fullDoc.creation;
+            } catch (fetchError) {
+              console.error('Error fetching full checkin document:', fetchError);
+            }
+          }
+
+          // Parse the time from Frappe (format can be "DD-MM-YYYY HH:MM:SS" or "YYYY-MM-DD HH:MM:SS")
+          try {
+            console.log('Raw check-in time from DB:', checkinTime);
+
+            if (!checkinTime) {
+              console.warn('Check-in record has no time field');
+              setCheckInTime('--:--');
+              setIsCheckedIn(true);
+              return;
+            }
+
+            const timeStr = String(checkinTime);
+
+            // Check if format is "DD-MM-YYYY HH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
+            let parsedDate;
+
+            if (timeStr.includes(' ')) {
+              // Split date and time parts
+              const [datePart, timePart] = timeStr.split(' ');
+
+              if (datePart.includes('-')) {
+                const parts = datePart.split('-');
+
+                // Check if it's DD-MM-YYYY or YYYY-MM-DD format
+                if (parts[0].length === 4) {
+                  // YYYY-MM-DD format
+                  parsedDate = new Date(timeStr.replace(' ', 'T'));
+                } else {
+                  // DD-MM-YYYY format - convert to YYYY-MM-DD
+                  const [day, month, year] = parts;
+                  parsedDate = new Date(`${year}-${month}-${day}T${timePart}`);
+                }
+              }
+            } else {
+              // Try direct parsing
+              parsedDate = new Date(timeStr);
+            }
+
+            // Check if date is valid
+            if (!parsedDate || isNaN(parsedDate.getTime())) {
+              throw new Error('Invalid date');
+            }
+
+            const formattedTime = parsedDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+
+            console.log('Formatted check-in time:', formattedTime);
+            setCheckInTime(formattedTime);
+          } catch (error) {
+            console.error('Error parsing check-in time:', error, checkinTime);
+            // Fallback: extract just the time portion and manually format
+            try {
+              const timeStr = String(checkinTime);
+              const timePart = timeStr.split(' ')[1]; // Get "HH:MM:SS" part
+              if (timePart) {
+                const [hours, minutes] = timePart.split(':');
+                const hour = parseInt(hours);
+                const minute = parseInt(minutes);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                const formattedTime = `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${ampm}`;
+                console.log('Fallback formatted time:', formattedTime);
+                setCheckInTime(formattedTime);
+              } else {
+                setCheckInTime('--:--');
+              }
+            } catch (fallbackError) {
+              console.error('Fallback parsing also failed:', fallbackError);
+              setCheckInTime('--:--');
+            }
+          }
+
           setIsCheckedIn(true);
         } else {
           setShowCheckButton(true);
@@ -216,16 +331,95 @@ const HomeScreen = () => {
       const logType = isCheckedIn ? 'OUT' : 'IN';
       const timestamp = formatTimestamp();
 
+      // Get location data and format for device_id field
+      let locationString = null;
+      let hasLocation = false;
+
+      // Capture fresh GPS location for both CHECK-IN and CHECK-OUT
+      try {
+        // Request location permissions
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status === 'granted') {
+          // Get current position
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+
+          const latitude = location.coords.latitude;
+          const longitude = location.coords.longitude;
+
+          console.log(`Location captured for ${isCheckedIn ? 'check-out' : 'check-in'}:`, { lat: latitude, lng: longitude });
+
+          // Build location string starting with coordinates
+          let locationParts = [`${latitude}, ${longitude}`];
+
+          // Try to get address from coordinates (reverse geocoding)
+          try {
+            const [address] = await Location.reverseGeocodeAsync({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+
+            if (address) {
+              // Build address components
+              const addressComponents = [];
+
+              if (address.name) addressComponents.push(address.name);
+              if (address.street) {
+                const street = address.streetNumber
+                  ? `${address.streetNumber} ${address.street}`
+                  : address.street;
+                addressComponents.push(street);
+              }
+              if (address.district) addressComponents.push(address.district);
+              if (address.city) addressComponents.push(address.city);
+              if (address.postalCode) addressComponents.push(address.postalCode);
+              if (address.country) addressComponents.push(address.country);
+
+              const fullAddress = addressComponents.join(', ');
+              if (fullAddress) {
+                locationParts.push(fullAddress);
+              }
+
+              console.log('Address resolved:', fullAddress);
+            }
+          } catch (geocodeError) {
+            console.warn('Could not get address from coordinates:', geocodeError);
+            // Continue with just coordinates
+          }
+
+          // Combine coordinates and address into single string
+          locationString = locationParts.join(' | ');
+          hasLocation = true;
+
+          console.log(`${isCheckedIn ? 'Check-out' : 'Check-in'} location:`, locationString);
+        } else {
+          console.warn('Location permission denied');
+          Alert.alert(
+            'Location Permission',
+            'Location permission is required for attendance tracking. ' +
+            (isCheckedIn ? 'Check-out' : 'Check-in') + ' will continue without location.',
+            [{ text: 'OK' }]
+          );
+        }
+      } catch (locationError) {
+        console.error('Error getting location:', locationError);
+        // Continue with check-in/out even if location fails
+      }
+
       console.log('Creating checkin record:', {
         employee: currentEmployee.name,
         time: timestamp,
-        log_type: logType
+        log_type: logType,
+        device_id: locationString
       });
 
       const result = await frappeService.createDoc('Employee Checkin', {
         employee: currentEmployee.name,
         time: timestamp,
-        log_type: logType
+        log_type: logType,
+        device_id: locationString, // Store location in device_id field
       });
 
       console.log('Checkin result:', result);
@@ -233,18 +427,33 @@ const HomeScreen = () => {
       if (result) {
         if (!isCheckedIn) {
           setIsCheckedIn(true);
-          const time = new Date(result.time || timestamp);
-          setCheckInTime(time.toLocaleTimeString('en-US', {
+          // Use the timestamp to set check-in time
+          const time = new Date(timestamp);
+          const formattedTime = time.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false
-          }));
-          Alert.alert('Success', `Successfully checked in at ${formatTime(result.time || timestamp)}`);
+            hour12: true
+          });
+          setCheckInTime(formattedTime);
+          console.log('Check-in time set to:', formattedTime);
+
+          let successMessage = `Successfully checked in at ${formatTime(result.creation || timestamp)}`;
+          if (hasLocation) {
+            successMessage += `\n📍 Location captured`;
+          }
+
+          Alert.alert('Success', successMessage);
         } else {
           setShowCheckButton(false);
           setCheckInTime('');
           setIsCheckedIn(false);
-          Alert.alert('Success', 'Successfully checked out. Have a great day!');
+
+          let successMessage = 'Successfully checked out. Have a great day!';
+          if (hasLocation) {
+            successMessage += '\n📍 Location captured';
+          }
+
+          Alert.alert('Success', successMessage);
         }
 
         await checkTodayCheckinStatus(currentEmployee.name);
@@ -316,14 +525,17 @@ const HomeScreen = () => {
       );
     }
 
+    const greeting = getGreeting();
+    const greetingIcon = getGreetingIcon();
+
     return (
       <View style={styles.statusContainer}>
         {isCheckedIn ? (
           <>
             <View style={styles.statusIconContainer}>
-              <Ionicons name="time" size={32} color="#2196F3" />
+              <Ionicons name="checkmark-done-circle" size={32} color="#4CAF50" />
             </View>
-            <Text style={styles.statusText}>Welcome Back!</Text>
+            <Text style={styles.statusText}>Already Checked In!</Text>
             <Text style={styles.statusSubtext}>
               You started your day at <Text style={styles.timeHighlight}>{checkInTime}</Text>
             </Text>
@@ -334,9 +546,9 @@ const HomeScreen = () => {
         ) : (
           <>
             <View style={styles.statusIconContainer}>
-              <Ionicons name="sunny" size={32} color="#FF9800" />
+              <Ionicons name={greetingIcon.name} size={32} color={greetingIcon.color} />
             </View>
-            <Text style={styles.statusText}>Good Morning!</Text>
+            <Text style={styles.statusText}>{greeting}!</Text>
             <Text style={styles.statusSubtext}>
               You haven't checked in today. Ready to start your day?
             </Text>
@@ -448,7 +660,10 @@ const HomeScreen = () => {
           <View style={styles.calendarCard}>
             <TouchableOpacity
               style={styles.calendarButton}
-              onPress={() => setShowCalendar(true)}
+              onPress={() => {
+                setCurrentMonth(new Date()); // Always reset to current month
+                setShowCalendar(true);
+              }}
               activeOpacity={0.8}
             >
               <LinearGradient

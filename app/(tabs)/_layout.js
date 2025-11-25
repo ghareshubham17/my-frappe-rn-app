@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Navbar from '../components/Navbar';
 import { View, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../_data/constants';
 
 /**
  * Tabs Layout - Bottom tab navigation for authenticated users
@@ -17,18 +18,27 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#667eea',
-          tabBarInactiveTintColor: '#9CA3AF',
+          tabBarActiveTintColor: COLORS.primary,
+          tabBarInactiveTintColor: COLORS.textSecondary,
           tabBarStyle: {
-            backgroundColor: '#ffffff',
+            backgroundColor: COLORS.background,
             borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
+            borderTopColor: COLORS.border,
             paddingTop: 8,
             paddingBottom: Platform.OS === 'ios' ? 0 : 8, // SafeAreaView handles iOS bottom
+            elevation: 8, // Android shadow
+            shadowColor: '#000', // iOS shadow
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 4,
           },
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
+            marginBottom: 4,
+          },
+          tabBarIconStyle: {
+            marginTop: 4,
           },
         }}
       >
@@ -75,6 +85,6 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.surface,
   },
 });

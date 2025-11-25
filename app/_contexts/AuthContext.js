@@ -21,15 +21,17 @@ export const AuthProvider = ({ children }) => {
   const [siteUrl, setSiteUrl] = useState(null);
 
   // Get device information including ID, model, and brand
-  const getDeviceInfo = async () => {
+  const getDeviceInfo = async (appId = null) => {
     try {
-      // Try to get stored device ID first (persists across app restarts)
-      let deviceId = await SecureStore.getItemAsync("device_id");
+      // Store device ID per appId to ensure proper device binding per user
+      const storageKey = appId ? `device_id_${appId}` : "device_id";
+      let deviceId = await SecureStore.getItemAsync(storageKey);
 
       if (!deviceId) {
         // Generate a unique device ID based on device characteristics
-        // Using stable device info (no timestamp) for consistency
+        // Put appId FIRST to ensure it's included in the final device ID
         const deviceFingerprint = [
+          appId || 'unknown', // Put app_id at the BEGINNING so it's captured in the device ID
           Device.modelName || 'unknown',
           Device.brand || 'unknown',
           Device.osVersion || 'unknown',
@@ -39,24 +41,28 @@ export const AuthProvider = ({ children }) => {
           Constants.sessionId || Date.now().toString()
         ].join('-');
 
+        console.log("Device fingerprint:", deviceFingerprint);
+
+
         // Create a hash-like ID (simplified base64 encoding)
         // This creates a unique but readable device identifier
+        // Using 40 chars to ensure appId is included
         try {
           deviceId = btoa(deviceFingerprint)
             .replace(/[^a-zA-Z0-9]/g, '')
-            .substring(0, 32);
+            .substring(0, 40);
         } catch (e) {
           // Fallback if btoa fails (shouldn't happen in React Native)
           deviceId = deviceFingerprint
             .replace(/[^a-zA-Z0-9]/g, '')
-            .substring(0, 32);
+            .substring(0, 40);
         }
 
-        // Store it securely for future use
-        await SecureStore.setItemAsync("device_id", deviceId);
-        console.log("📱 Generated new device ID using device fingerprint");
+        // Store it securely for future use (per appId)
+        await SecureStore.setItemAsync(storageKey, deviceId);
+        console.log(`📱 Generated new device ID for ${appId || 'default'} using device fingerprint`);
       } else {
-        console.log("📱 Retrieved existing device ID from storage");
+        console.log(`📱 Retrieved existing device ID for ${appId || 'default'} from storage`);
       }
 
       // Get device model and brand
@@ -268,8 +274,8 @@ export const AuthProvider = ({ children }) => {
       console.log("Attempting mobile app login at:", loginUrl);
       console.log("App ID:", appId);
 
-      // Get device info (ID, model, brand)
-      const deviceInfo = await getDeviceInfo();
+      // Get device info (ID, model, brand) - include app_id in fingerprint
+      const deviceInfo = await getDeviceInfo(appId);
       console.log("Device Info:", deviceInfo);
 
       // Use mobile_app_login endpoint
